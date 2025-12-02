@@ -1,259 +1,300 @@
-const container = document.getElementById('container');
-const zoneViewer = document.getElementById('zoneViewer');
-const searchBar = document.getElementById('searchBar');
-const sortOptions = document.getElementById('sortOptions');
-const zoneCount = document.getElementById('zoneCount');
-
-const zonesURL = "https://cdn.jsdelivr.net/gh/NikeGtag/data@main/games.json";
-const coverURL = "https://cdn.jsdelivr.net/gh/gn-math/covers@main";
-const htmlURL = "https://cdn.jsdelivr.net/gh/gn-math/html@main";
-
-let zones = [];
-let popularityData = {};
-let currentZone = null;
-let zoneFrame = null;
-
-// Hide modal on load (prevents null errors)
-document.addEventListener("DOMContentLoaded", () => {
-    zoneViewer.style.display = "none";
-    zoneViewer.style.visibility = "hidden";
-    searchBar.focus();
-});
-
-async function listZones() {
-    try {
-        const response = await fetch(zonesURL + "?t=" + Date.now());
-        zones = await response.json();
-        await fetchPopularity();
-        sortZones();
-
-        // Auto-open game from URL ?id=
-        const params = new URLSearchParams(location.search);
-        const id = params.get('id');
-        if (id) {
-            const zone = zones.find(z => z.id + '' === id + '');
-            if (zone) openZone(zone);
-        }
-    } catch (err) {
-        container.innerHTML = `<div style="color:red;padding:20px;">Error loading games: ${err}</div>`;
-    }
-}
-
-async function fetchPopularity() {
-    try {
-        const res = await fetch("https://data.jsdelivr.com/v1/stats/packages/gh/gn-math/html@main/files?period=year");
-        const data = await res.json();
-        data.forEach(file => {
-            const match = file.name.match(/\/(\d+)\.html$/);
-            if (match) popularityData[parseInt(match[1])] = file.hits.total;
-        });
-    } catch (e) { /* ignore */ }
-}
-
-function sortZones() {
-    const by = sortOptions.value;
-    if (by === 'name') zones.sort((a, b) => a.name.localeCompare(b.name));
-    else if (by === 'id') zones.sort((a, b) => a.id - b.id);
-    else if (by === 'popular') zones.sort((a, b) => (popularityData[b.id] || 0) - (popularityData[a.id] || 0));
-    
-    // Pinned zones (id = -1) always on top
-    zones.sort((a, b) => (a.id === -1 ? -1 : b.id === -1 ? 1 : 0));
-    
-    displayZones(zones);
-}
-
-function displayZones(list) {
-    container.innerHTML = "";
-    list.forEach(zone => {
-        const div = document.createElement("div");
-        div.className = "zone-item";
-        div.onclick = () => openZone(zone);
-
-        const img = document.createElement("img");
-        img.src = zone.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL) + "?t=" + Date.now();
-        img.loading = "lazy";
-        img.alt = zone.name;
-        div.appendChild(img);
-
-        const btn = document.createElement("button");
-        btn.textContent = zone.name;
-        btn.onclick = e => { e.stopPropagation(); openZone(zone); };
-        div.appendChild(btn);
-
-        container.appendChild(div);
-    });
-
-    zoneCount.textContent = list.length ? `Zones Loaded: ${list.length}` : "No zones found";
-}
-
-function filterZones() {
-    const q = searchBar.value.toLowerCase();
-    const filtered = zones.filter(z => z.name.toLowerCase().includes(q) || (z.tags && z.tags.some(t => t.toLowerCase().includes(q))));
-    displayZones(filtered);
-}
-
-// BULLETPROOF openZone — fixes iframe null errors
-function openZone(file) {
-    currentZone = file;
-
-    if (file.url.startsWith("http")) {
-        window.open(file.url, "_blank");
-        return;
-    }
-
-    zoneViewer.style.display = "block";
-    zoneViewer.style.visibility = "visible";
-
-    const url = file.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
-
-    fetch(url + "?t=" + Date.now())
-        .then(r => {
-            if (!r.ok) throw new Error("Game not found");
-            return r.text();
-        })
-        .then(html => {
-            // Remove old iframe
-            if (zoneFrame && zoneFrame.parentNode) {
-                zoneFrame.remove();
+        const container = document.getElementById('container');
+        const zoneViewer = document.getElementById('zoneViewer');
+        let zoneFrame = document.getElementById('zoneFrame');
+        const searchBar = document.getElementById('searchBar');
+        const sortOptions = document.getElementById('sortOptions');
+        // https://www.jsdelivr.com/tools/purge
+        const zonesURL = "https://cdn.jsdelivr.net/gh/NikeGtag/data@main/games.json";
+        const coverURL = "https://cdn.jsdelivr.net/gh/gn-math/covers@main";
+        const htmlURL = "https://cdn.jsdelivr.net/gh/gn-math/html@main";
+        let zones = [];
+        let popularityData = {};
+        async function listZones() {
+            try {
+                const response = await fetch(zonesURL+"?t="+Date.now());
+                const json = await response.json();
+                zones = json;
+                await fetchPopularity();
+                sortZones();
+                const search = new URLSearchParams(window.location.search);
+                const id = search.get('id');
+                if (id) {
+                    const zone = zones.find(zone => zone.id + '' == id + '');
+                    if (zone) {
+                        openZone(zone);
+                    }
+                }
+            } catch (error) {
+                container.innerHTML = `Error loading zones: ${error}`;
             }
+        }
+        async function fetchPopularity() {
+            try {
+                const response = await fetch("https://data.jsdelivr.com/v1/stats/packages/gh/gn-math/html@main/files?period=year");
+                const data = await response.json();
+                data.forEach(file => {
+                    const idMatch = file.name.match(/\/(\d+)\.html$/);
+                    if (idMatch) {
+                        const id = parseInt(idMatch[1]);
+                        popularityData[id] = file.hits.total;
+                    }
+                });
+            } catch (error) {
+                popularityData[0] = 0;
+            }
+        }
 
-            // Create fresh iframe
-            zoneFrame = document.createElement("iframe");
-            zoneFrame.id = "zoneFrame";
-            zoneViewer.appendChild(zoneFrame);
+        function sortZones() {
+            const sortBy = sortOptions.value;
+            if (sortBy === 'name') {
+                zones.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sortBy === 'id') {
+                zones.sort((a, b) => a.id - b.id);
+            } else if (sortBy === 'popular') {
+                zones.sort((a, b) => (popularityData[b.id] || 0) - (popularityData[a.id] || 0));
+            }
+            zones.sort((a, b) => (a.id === -1 ? -1 : b.id === -1 ? 1 : 0));
+            displayZones(zones);
+        }
 
-            const doc = zoneFrame.contentDocument || zoneFrame.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
+        function displayZones(zones) {
+            container.innerHTML = "";
+            zones.forEach(file => {
+                const zoneItem = document.createElement("div");
+                zoneItem.className = "zone-item";
+                zoneItem.onclick = () => openZone(file);
+                const img = document.createElement("img");
+                img.src = file.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+                zoneItem.appendChild(img);
+                const button = document.createElement("button");
+                button.textContent = file.name;
+                button.onclick = (event) => {
+                    event.stopPropagation();
+                    openZone(file);
+                };
+                zoneItem.appendChild(button);
+                container.appendChild(zoneItem);
+            });
+            if (container.innerHTML === "") {
+                container.innerHTML = "No zones found.";
+            } else {
+                document.getElementById("zoneCount").textContent = `Zones Loaded: ${zones.length}`;
+            }
+        }
 
-            document.getElementById("zoneName").textContent = file.name || "Untitled Game";
-            const authorEl = document.getElementById("zoneAuthor");
-            authorEl.textContent = file.author ? "by " + file.author : "by Unknown";
-            authorEl.href = file.authorLink || "#";
+        function filterZones() {
+            const query = searchBar.value.toLowerCase();
+            const filteredZones = zones.filter(zone => zone.name.toLowerCase().includes(query));
+            displayZones(filteredZones);
+        }
 
-            zoneViewer.scrollTop = 0;
-        })
-        .catch(err => {
-            alert("Failed to load game: " + err.message);
-            closeZone();
+        function openZone(file) {
+            if (file.url.startsWith("http")) {
+                window.open(file.url, "_blank");
+            } else {
+                const url = file.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+                fetch(url+"?t="+Date.now()).then(response => response.text()).then(html => {
+                    if (zoneFrame.contentDocument === null) {
+                        zoneFrame = document.createElement("iframe");
+                        zoneFrame.id = "zoneFrame";
+                        zoneViewer.appendChild(zoneFrame);
+                    }
+                    zoneFrame.contentDocument.open();
+                    zoneFrame.contentDocument.write(html);
+                    zoneFrame.contentDocument.close();
+                    document.getElementById('zoneName').textContent = file.name;
+                    document.getElementById('zoneId').textContent = file.id;
+                    document.getElementById('zoneAuthor').textContent = "by " + file.author;
+                    if (file.authorLink) {
+                        document.getElementById('zoneAuthor').href = file.authorLink;
+                    }
+                    zoneViewer.style.display = "block";
+                }).catch(error => alert("Failed to load zone: " + error));
+            }
+        }
+
+        function aboutBlank() {
+            const newWindow = window.open("about:blank", "_blank");
+            let zone = zones.find(zone => zone.id + '' === document.getElementById('zoneId').textContent).url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+            fetch(zone+"?t="+Date.now()).then(response => response.text()).then(html => {
+                if (newWindow) {
+                    newWindow.document.open();
+                    newWindow.document.write(html);
+                    newWindow.document.close();
+                }
+            })
+        }
+
+        function closeZone() {
+            zoneViewer.style.display = "none";
+            zoneViewer.removeChild(zoneFrame);
+        }
+
+        function downloadZone() {
+            let zone = zones.find(zone => zone.id + '' === document.getElementById('zoneId').textContent);
+            fetch(zone.url.replace("{HTML_URL}", htmlURL)+"?t="+Date.now()).then(res => res.text()).then(text => {
+                const blob = new Blob([text], {
+                    type: "text/plain;charset=utf-8"
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = zone.name + ".html";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function fullscreenZone() {
+            if (zoneFrame.requestFullscreen) {
+                zoneFrame.requestFullscreen();
+            } else if (zoneFrame.mozRequestFullScreen) {
+                zoneFrame.mozRequestFullScreen();
+            } else if (zoneFrame.webkitRequestFullscreen) {
+                zoneFrame.webkitRequestFullscreen();
+            } else if (zoneFrame.msRequestFullscreen) {
+                zoneFrame.msRequestFullscreen();
+            }
+        }
+
+        function saveData() {
+            let data = JSON.stringify(localStorage) + "\n\n|\n\n" + document.cookie;
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([data], {
+                type: "text/plain"
+            }));
+            link.download = `${Date.now()}.data`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function loadData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                const [localStorageData, cookieData] = content.split("\n\n|\n\n");
+                try {
+                    const parsedData = JSON.parse(localStorageData);
+                    for (let key in parsedData) {
+                        localStorage.setItem(key, parsedData[key]);
+                    }
+                } catch (error) {
+                }
+                if (cookieData) {
+                    const cookies = cookieData.split("; ");
+                    cookies.forEach(cookie => {
+                        document.cookie = cookie;
+                    });
+                }
+                alert("Data loaded");
+            };
+            reader.readAsText(file);
+        }
+
+        function darkMode() {
+            document.body.classList.toggle("dark-mode");
+        }
+
+        function cloakIcon(url) {
+            const link = document.querySelector("link[rel~='icon']");
+            link.rel = "icon";
+            if ((url+"").trim().length === 0) {
+                link.href = "favicon.png";
+            } else {
+                link.href = url;
+            }
+            document.head.appendChild(link);
+        }
+        function cloakName(string) {
+            if ((string+"").trim().length === 0) {
+                document.title = "gn-math";
+                return;
+            }
+            document.title = string;
+        }
+
+        function tabCloak() {
+            closePopup();
+            document.getElementById('popupTitle').textContent = "Tab Cloak";
+            const popupBody = document.getElementById('popupBody');
+            popupBody.innerHTML = `
+                <label for="tab-cloak-textbox" style="font-weight: bold;">Set Tab Title:</label><br>
+                <input type="text" id="tab-cloak-textbox" placeholder="Enter new tab name..." oninput="cloakName(this.value)">
+                <br><br><br><br>
+                <label for="tab-cloak-textbox" style="font-weight: bold;">Set Tab Icon:</label><br>
+                <input type="text" id="tab-cloak-textbox" placeholder="Enter new tab icon..." oninput='cloakIcon(this.value)'>
+                <br><br><br>
+            `;
+            popupBody.contentEditable = false;
+            document.getElementById('popupOverlay').style.display = "flex";
+        }
+
+        const settings = document.getElementById('settings');
+        settings.addEventListener('click', () => {
+            document.getElementById('popupTitle').textContent = "Settings";
+            const popupBody = document.getElementById('popupBody');
+            popupBody.innerHTML = `
+            <button id="settings-button" onclick="darkMode()">Toggle Dark Mode</button>
+            <br><br>
+            <button id="settings-button" onclick="tabCloak()">Tab Cloak</button>
+            <br>
+            `;
+            popupBody.contentEditable = false;
+            document.getElementById('popupOverlay').style.display = "flex";
         });
-}
 
-function closeZone() {
-    zoneViewer.style.display = "none";
-    zoneViewer.style.visibility = "hidden";
-    if (zoneFrame && zoneFrame.parentNode) {
-        zoneFrame.remove();
-        zoneFrame = null;
-    }
-    currentZone = null;
-}
+        function showContact() {
+            document.getElementById('popupTitle').textContent = "Contact";
+            const popupBody = document.getElementById('popupBody');
+            popupBody.innerHTML = `<p>Discord: https://discord.gg/NAFw4ykZ7n</p>`;
+            popupBody.contentEditable = false;
+            document.getElementById('popupOverlay').style.display = "flex";
+        }
 
-function fullscreenZone() {
-    if (!zoneFrame) return;
-    const el = zoneFrame;
-    if (el.requestFullscreen) el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
-    else if (el.msRequestFullscreen) el.msRequestFullscreen();
-    else alert("Fullscreen blocked. Try pressing F11.");
-}
+        function loadPrivacy() {
+            document.getElementById('popupTitle').textContent = "Privacy Policy";
+            const popupBody = document.getElementById('popupBody');
+            popupBody.innerHTML = `
+                <div style="max-height: 60vh; overflow-y: auto;">
+                    <h2>PRIVACY POLICY</h2>
+                    <p>Last updated April 17, 2025</p>
+                    <p>This Privacy Notice for gn-math ("we," "us," or "our"), describes how and why we might access, collect, store, use, and/or share ("process") your personal information when you use our services ("Services"), including when you:</p>
+                    <ul>
+                        <li>Visit our website at <a href="https://gn-math.github.io">https://gn-math.github.io</a>, or any website of ours that links to this Privacy Notice</li>
+                        <li>Engage with us in other related ways, including any sales, marketing, or events</li>
+                    </ul>
+                    <p>Questions or concerns? Reading this Privacy Notice will help you understand your privacy rights and choices. We are responsible for making decisions about how your personal information is processed. If you do not agree with our policies and practices, please do not use our Services. If you still have any questions or concerns, please contact us at <a href="https://discord.gg/NAFw4ykZ7n">https://discord.gg/NAFw4ykZ7n</a>.</p>
+                    
+                    <h3>SUMMARY OF KEY POINTS</h3>
+                    <p>This summary provides key points from our Privacy Notice, but you can find out more details about any of these topics by clicking the link following each key point or by using our table of contents below to find the section you are looking for.</p>
+                    
+                    <p><strong>What personal information do we process?</strong> When you visit, use, or navigate our Services, we may process personal information depending on how you interact with us and the Services, the choices you make, and the products and features you use. Learn more about personal information you disclose to us.</p>
+                    
+                    <p><strong>Do we process any sensitive personal information?</strong> Some of the information may be considered "special" or "sensitive" in certain jurisdictions, for example your racial or ethnic origins, sexual orientation, and religious beliefs. We do not process sensitive personal information.</p>
+                    
+                    <p><strong>Do we collect any information from third parties?</strong> We do not collect any information from third parties.</p>
+                    
+                    <p><strong>How do we process your information?</strong> We process your information to provide, improve, and administer our Services, communicate with you, for security and fraud prevention, and to comply with law. We may also process your information for other purposes with your consent. We process your information only when we have a valid legal reason to do so. Learn more about how we process your information.</p>
+                    
+                    <p><strong>In what situations and with which parties do we share personal information?</strong> We may share information in specific situations and with specific third parties. Learn more about when and with whom we share your personal information.</p>
+                    
+                    <p><strong>How do we keep your information safe?</strong> We have adequate organizational and technical processes and procedures in place to protect your personal information. However, no electronic transmission over the internet or information storage technology can be guaranteed to be 100% secure, so we cannot promise or guarantee that hackers, cybercriminals, or other unauthorized third parties will not be able to defeat our security and improperly collect, access, steal, or modify your information. Learn more about how we keep your information safe.</p>
+                    
+                    <p><strong>What are your rights?</strong> Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information. Learn more about your privacy rights.</p>
+                    
+                    <p><strong>How do you exercise your rights?</strong> The easiest way to exercise your rights is by submitting a data subject access request, or by contacting us. We will consider and act upon any request in accordance with applicable data protection laws.</p>
+                </div>
+            `;
+            popupBody.contentEditable = false;
+            document.getElementById('popupOverlay').style.display = "flex";
+        }
 
-function aboutBlank() {
-    if (!currentZone) return alert("No game open");
-    const win = window.open("about:blank", "_blank");
-    if (!win) return alert("Popup blocked! Allow popups or use Fullscreen.");
-
-    const url = currentZone.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
-    fetch(url + "?t=" + Date.now())
-        .then(r => r.text())
-        .then(html => {
-            win.document.open();
-            win.document.write(html);
-            win.document.close();
-            win.document.title = currentZone.name || "Game";
-        });
-}
-
-function downloadZone() {
-    if (!currentZone) return alert("No game open");
-    const url = currentZone.url.replace("{HTML_URL}", htmlURL) + "?t=" + Date.now();
-    fetch(url)
-        .then(r => r.text())
-        .then(text => {
-            const blob = new Blob([text], { type: "text/html" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = (currentZone.name || "game").replace(/[^a-z0-9]/gi, '_') + ".html";
-            a.click();
-            URL.revokeObjectURL(a.href);
-        });
-}
-
-// Settings
-function darkMode() {
-    document.body.classList.toggle("dark-mode");
-}
-
-function cloakName(str) {
-    document.title = str.trim() || "homework bro bro";
-}
-
-function cloakIcon(url) {
-    let link = document.querySelector("link[rel='icon']");
-    if (!link) {
-        link = document.createElement("link");
-        link.rel = "icon";
-        document.head.appendChild(link);
-    }
-    link.href = url.trim() || "favicon.png";
-}
-
-function tabCloak() {
-    closePopup();
-    document.getElementById("popupTitle").textContent = "Tab Cloak";
-    document.getElementById("popupBody").innerHTML = `
-        <label>Title:</label><br>
-        <input type="text" placeholder="Google Docs" oninput="cloakName(this.value)"><br><br>
-        <label>Icon URL:</label><br>
-        <input type="text" placeholder="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" oninput="cloakIcon(this.value)">
-    `;
-    document.getElementById("popupOverlay").style.display = "flex";
-}
-
-function showContact() {
-    closePopup();
-    document.getElementById("popupTitle").textContent = "Contact";
-    document.getElementById("popupBody").innerHTML = `
-        <p>Discord: <a href="https://discord.gg/NAFw4ykZ7n" target="_blank">discord.gg/NAFw4ykZ7n</a></p>
-    `;
-    document.getElementById("popupOverlay").style.display = "flex";
-}
-
-function closePopup() {
-    document.getElementById("popupOverlay").style.display = "none";
-}
-
-// Settings button
-document.getElementById("settings").addEventListener("click", () => {
-    document.getElementById("popupTitle").textContent = "Settings";
-    document.getElementById("popupBody").innerHTML = `
-        <button onclick="darkMode()">Toggle Dark Mode</button><br><br>
-        <button onclick="tabCloak()">Tab Cloak</button><br><br>
-        <button onclick="showContact()">Contact</button>
-    `;
-    document.getElementById("popupOverlay").style.display = "flex";
-});
-
-// Close popup on overlay click
-document.getElementById("popupOverlay").addEventListener("click", e => {
-    if (e.target === document.getElementById("popupOverlay")) closePopup();
-});
-
-// Start
-listZones();
-
-// Live search + sort
-searchBar.addEventListener("input", filterZones);
-sortOptions.addEventListener("change", sortZones);
+        function closePopup() {
+            document.getElementById('popupOverlay').style.display = "none";
+        }
+        listZones();
