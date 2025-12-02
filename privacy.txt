@@ -1,43 +1,85 @@
-# PRIVACY POLICY
-gn-math
-Last updated: November 28, 2025
-We keep this short because we barely collect anything.
-In plain English:
+# Privacy Policy for “homework bro bro”
 
-We do not ask for your name, email, address, or any personal details.
-We do not use accounts, logins, or registration forms.
-We do not process any sensitive personal information (race, religion, sexual orientation, health data, etc.).
-We do not receive data about you from third parties.
-We do not sell, share, or transfer your data to anyone for marketing or any other purpose.
+**Effective date: December 1, 2025**
 
-What we automatically collect (standard for any website):
+We wrote this policy to be short, honest, and easy to read.  
+If anything here is unclear, contact us and we’ll explain it in plain words.
 
-Basic server logs: IP address, browser type, pages visited, time of visit.
-Google Analytics (completely anonymized – your IP is masked before storage).
-A few first-party cookies that remember your preferred theme (light/dark) and language – nothing else.
+### 1. What we collect and why
 
-That’s it. These logs and analytics are only used to keep the site running, fix bugs, and see which math pages are most popular.
-Cookies & tracking
+| Data we collect                  | How we get it                     | Why we need it                               | How long we keep it |
+|----------------------------------|-----------------------------------|----------------------------------------------|---------------------|
+| Your public IP address           | When your browser connects        | Prevent abuse, enforce bans, rate-limiting   | 7 days (server logs) |
+| Approximate device info         | Browser fingerprint (no cookies)  | Detect bots, repeated abusers, ban evasion   | Only as a hashed ID |
+| Screen resolution & language     | JavaScript (`screen.width`, etc.) | Same as above                                | Only as a hashed ID |
+| Hashed visitor identifier        | SHA-256 hash of (IP + device + resolution + language) | Permanent ban enforcement without storing raw IP | Forever (just the hash) |
+| Pages you visit & time           | Standard server logs + Google Analytics (anonymized) | Improve the site, see which games are popular | 30 days (logs) / Google’s retention |
+| Theme preference (dark/light)    | LocalStorage in your browser      | Remember your choice                         | Until you clear it |
 
-We use the minimum possible: one cookie for site settings, Google Analytics (anonymized), and MathJax CDN for rendering equations.
-You can opt out of Google Analytics at any time: https://tools.google.com/dlpage/gaoptout
-You can delete or block all cookies in your browser – the site will still work perfectly.
+We do **not** collect:
+- Your name, email, or any account info (there are no accounts)
+- Exact location, GPS, or precise geolocation
+- Any personal files or messages
+- Data from children under 13 (the site is general audience, not directed at kids)
 
-Google API usage
-When we load book covers or previews via Google services, we follow Google’s API Services User Data Policy and its Limited Use requirements.
-How long we keep data
-Server logs: maximum 30 days.
-Google Analytics data: anonymized immediately and retained under Google’s own policy.
-Your rights (GDPR, CCPA, etc.)
-Even though we collect almost nothing identifiable, you still have full rights:
+### 2. The visitor hash explained (the thing that caused confusion before)
 
-Access, correction, deletion, restriction, portability, objection – whatever applies in your country.
-To exercise any right, just join our Discord and message a staff member: https://discord.gg/NAFw4ykZ7n
-We’ll handle it within 30 days (usually much faster).
+To stop people who repeatedly break the rules, we create a one-way cryptographic hash from:
+- Your IP address
+- Browser + OS fingerprint
+- Screen resolution
+- Language setting
 
-Third-party links
-Our pages may link to GitHub, jsDelivr, Wikipedia, or other external sites. Once you leave gn-math, their privacy policies apply – we have no control over them.
-Children
-The site is pure educational content and does not target children under 13. We do not knowingly collect data from children.
-Changes to this policy
-If we ever make a meaningful change, we’ll update the “Last updated” date
+This hash looks like: `a3f1e9c8b2d4...` (32 random characters).  
+Even we cannot turn it back into your IP address.  
+We only use it to recognize the same device if it comes back and causes problems again.  
+If you’re on a school or public Wi-Fi, multiple people can end up with the same hash — that’s fine and expected.
+
+### 3. Discord logging (yes, we do this — here’s exactly what goes there)
+
+When you first visit (once every 30 minutes max), we send one message to a private staff-only Discord channel containing:
+- The hashed visitor ID (in ||spoilers|| so regular members can’t see it)
+- Rough device description (e.g., “Windows • Chrome” or “iPhone iOS 18”)
+- Screen resolution
+- Timestamp and page URL
+
+Purpose: Let the two people who run the site quickly spot and stop spam, malware uploads, or DDoS attempts.  
+Only the site owner and one trusted moderator can see this channel.  
+We never share it with anyone else.
+
+### 4. Cookies & tracking
+
+- First-party only
+- One tiny cookie/localStorage item for dark/light mode
+- Google Analytics (IP anonymized) — you can block it with uBlock Origin or any ad-blocker
+- No marketing cookies, no Facebook pixel, no third-party trackers
+
+### 5. Ads
+
+We show Google AdSense ads. Google may set its own cookies and collect data according to its own privacy policy. You can opt out of personalized ads here: https://adssettings.google.com
+
+### 6. Your rights (GDPR, CCPA, etc.)
+
+Even though we store almost nothing identifiable, you still have full rights:
+- Ask what (little) data we have → we’ll reply within 48 hours
+- Ask us to delete your visitor hash (un-ban yourself or someone else)
+- Object to any processing
+
+Just DM us on Discord: https://discord.gg/NAFw4ykZ7n or open an issue on the GitHub repo.
+
+### 7. Children’s privacy
+
+The site is not directed at children under 13. If we ever learn a banned hash belongs to a child, we delete it immediately.
+
+### 8. Contact & questions
+
+Any problem, any question, any request → join https://discord.gg/NAFw4ykZ7n and ping @owner or @mod.  
+We usually answer within a few hours.
+
+### 9. Changes to this policy
+
+If we make a big change we’ll put a notice on the homepage for at least 30 days and update the “Effective date” at the top.
+
+That’s everything. We hate creepy tracking as much as you do — we only keep the absolute minimum needed to keep the site safe and working.
+
+— The gn-math team (literally one tired student)
