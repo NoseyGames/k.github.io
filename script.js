@@ -1,8 +1,8 @@
 const container = document.getElementById('container');
 const zoneViewer = document.getElementById('zoneViewer');
-let zoneFrame = null; // We'll create it properly
 const searchBar = document.getElementById('searchBar');
 const sortOptions = document.getElementById('sortOptions');
+const zoneCount = document.getElementById('zoneCount');
 
 const zonesURL = "https://cdn.jsdelivr.net/gh/NikeGtag/data@main/games.json";
 const coverURL = "https://cdn.jsdelivr.net/gh/gn-math/covers@main";
@@ -11,21 +11,23 @@ const htmlURL = "https://cdn.jsdelivr.net/gh/gn-math/html@main";
 let zones = [];
 let popularityData = {};
 let currentZone = null;
+let zoneFrame = null;
 
-// Force modal into layout on page load so elements are never null
+// Hide modal on load (prevents null errors)
 document.addEventListener("DOMContentLoaded", () => {
-    zoneViewer.style.display = "none"; // triggers reflow → #zoneName & #zoneAuthor exist
+    zoneViewer.style.display = "none";
+    zoneViewer.style.visibility = "hidden";
+    searchBar.focus();
 });
 
 async function listZones() {
     try {
         const response = await fetch(zonesURL + "?t=" + Date.now());
-        const json = await response.json();
-        zones = json;
+        zones = await response.json();
         await fetchPopularity();
         sortZones();
 
-        // Auto-open game if ?id= is in URL
+        // Auto-open game from URL ?id=
         const params = new URLSearchParams(location.search);
         const id = params.get('id');
         if (id) {
@@ -33,7 +35,7 @@ async function listZones() {
             if (zone) openZone(zone);
         }
     } catch (err) {
-        container.innerHTML = `Error loading games: ${err}`;
+        container.innerHTML = `<div style="color:red;padding:20px;">Error loading games: ${err}</div>`;
     }
 }
 
@@ -53,10 +55,10 @@ function sortZones() {
     if (by === 'name') zones.sort((a, b) => a.name.localeCompare(b.name));
     else if (by === 'id') zones.sort((a, b) => a.id - b.id);
     else if (by === 'popular') zones.sort((a, b) => (popularityData[b.id] || 0) - (popularityData[a.id] || 0));
-
+    
     // Pinned zones (id = -1) always on top
     zones.sort((a, b) => (a.id === -1 ? -1 : b.id === -1 ? 1 : 0));
-
+    
     displayZones(zones);
 }
 
@@ -68,8 +70,9 @@ function displayZones(list) {
         div.onclick = () => openZone(zone);
 
         const img = document.createElement("img");
-        img.src = zone.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
+        img.src = zone.cover.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL) + "?t=" + Date.now();
         img.loading = "lazy";
+        img.alt = zone.name;
         div.appendChild(img);
 
         const btn = document.createElement("button");
@@ -80,17 +83,16 @@ function displayZones(list) {
         container.appendChild(div);
     });
 
-    document.getElementById("zoneCount").textContent =
-        list.length ? `Zones Loaded: ${list.length}` : "No zones found";
+    zoneCount.textContent = list.length ? `Zones Loaded: ${list.length}` : "No zones found";
 }
 
 function filterZones() {
     const q = searchBar.value.toLowerCase();
-    const filtered = zones.filter(z => z.name.toLowerCase().includes(q));
+    const filtered = zones.filter(z => z.name.toLowerCase().includes(q) || (z.tags && z.tags.some(t => t.toLowerCase().includes(q))));
     displayZones(filtered);
 }
 
-// MAIN FIX — BULLETPROOF openZone
+// BULLETPROOF openZone — fixes iframe null errors
 function openZone(file) {
     currentZone = file;
 
@@ -99,30 +101,33 @@ function openZone(file) {
         return;
     }
 
-    // Force modal visible for 1 frame so elements exist
     zoneViewer.style.display = "block";
+    zoneViewer.style.visibility = "visible";
 
     const url = file.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
 
     fetch(url + "?t=" + Date.now())
         .then(r => {
-            if (!r.ok) throw new Error("Not found");
+            if (!r.ok) throw new Error("Game not found");
             return r.text();
         })
         .then(html => {
-            // Create/recreate iframe cleanly
-            if (zoneFrame && zoneFrame.parentNode) zoneFrame.remove();
+            // Remove old iframe
+            if (zoneFrame && zoneFrame.parentNode) {
+                zoneFrame.remove();
+            }
+
+            // Create fresh iframe
             zoneFrame = document.createElement("iframe");
             zoneFrame.id = "zoneFrame";
             zoneViewer.appendChild(zoneFrame);
 
-            zoneFrame.contentDocument.open();
-            zoneFrame.contentDocument.write(html);
-            zoneFrame.contentDocument.close();
+            const doc = zoneFrame.contentDocument || zoneFrame.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
 
-            // These will NEVER be null now
             document.getElementById("zoneName").textContent = file.name || "Untitled Game";
-
             const authorEl = document.getElementById("zoneAuthor");
             authorEl.textContent = file.author ? "by " + file.author : "by Unknown";
             authorEl.href = file.authorLink || "#";
@@ -130,13 +135,14 @@ function openZone(file) {
             zoneViewer.scrollTop = 0;
         })
         .catch(err => {
-            alert("Failed to load game: " + err);
+            alert("Failed to load game: " + err.message);
             closeZone();
         });
 }
 
 function closeZone() {
     zoneViewer.style.display = "none";
+    zoneViewer.style.visibility = "hidden";
     if (zoneFrame && zoneFrame.parentNode) {
         zoneFrame.remove();
         zoneFrame = null;
@@ -151,21 +157,22 @@ function fullscreenZone() {
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
     else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    else alert("Fullscreen blocked. Try pressing F11.");
 }
 
 function aboutBlank() {
     if (!currentZone) return alert("No game open");
-    const url = currentZone.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
     const win = window.open("about:blank", "_blank");
+    if (!win) return alert("Popup blocked! Allow popups or use Fullscreen.");
+
+    const url = currentZone.url.replace("{COVER_URL}", coverURL).replace("{HTML_URL}", htmlURL);
     fetch(url + "?t=" + Date.now())
         .then(r => r.text())
         .then(html => {
-            if (win) {
-                win.document.open();
-                win.document.write(html);
-                win.document.close();
-                win.document.title = currentZone.name || "Game";
-            }
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+            win.document.title = currentZone.name || "Game";
         });
 }
 
@@ -184,7 +191,7 @@ function downloadZone() {
         });
 }
 
-// Settings & UI
+// Settings
 function darkMode() {
     document.body.classList.toggle("dark-mode");
 }
@@ -194,10 +201,13 @@ function cloakName(str) {
 }
 
 function cloakIcon(url) {
-    const link = document.querySelector("link[rel='icon']") || document.createElement("link");
-    link.rel = "icon";
+    let link = document.querySelector("link[rel='icon']");
+    if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        document.head.appendChild(link);
+    }
     link.href = url.trim() || "favicon.png";
-    document.head.appendChild(link);
 }
 
 function tabCloak() {
@@ -205,14 +215,15 @@ function tabCloak() {
     document.getElementById("popupTitle").textContent = "Tab Cloak";
     document.getElementById("popupBody").innerHTML = `
         <label>Title:</label><br>
-        <input type="text" placeholder="New tab title..." oninput="cloakName(this.value)"><br><br>
+        <input type="text" placeholder="Google Docs" oninput="cloakName(this.value)"><br><br>
         <label>Icon URL:</label><br>
-        <input type="text" placeholder="https://example.com/icon.png" oninput="cloakIcon(this.value)">
+        <input type="text" placeholder="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico" oninput="cloakIcon(this.value)">
     `;
     document.getElementById("popupOverlay").style.display = "flex";
 }
 
 function showContact() {
+    closePopup();
     document.getElementById("popupTitle").textContent = "Contact";
     document.getElementById("popupBody").innerHTML = `
         <p>Discord: <a href="https://discord.gg/NAFw4ykZ7n" target="_blank">discord.gg/NAFw4ykZ7n</a></p>
@@ -235,10 +246,14 @@ document.getElementById("settings").addEventListener("click", () => {
     document.getElementById("popupOverlay").style.display = "flex";
 });
 
-// Close popup when clicking overlay
+// Close popup on overlay click
 document.getElementById("popupOverlay").addEventListener("click", e => {
     if (e.target === document.getElementById("popupOverlay")) closePopup();
 });
 
-// Start everything
+// Start
 listZones();
+
+// Live search + sort
+searchBar.addEventListener("input", filterZones);
+sortOptions.addEventListener("change", sortZones);
